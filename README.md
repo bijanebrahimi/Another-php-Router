@@ -1,12 +1,22 @@
 
 
+
 Another PHP Router
 ===========================
+
 
 Introduction
 -----------------------------
 
-it's another router class for php. read the rest of manual for the detailed features.
+it's another router class for php. read the rest of manual for the detailed features and sample codes.
+
+Features
+-----------------------------
+
+* Pattern based routing
+* powerful reverse routing include cross domain reverse routing
+* very flexible routing supporting different/user-defined protocols, subdomains, domanins, web server port and request methods
+* very simple to use
 
 How to [Simply] Use it
 -----------------------------
@@ -29,7 +39,7 @@ a pattern defines how dynamic parts of a URL must look like. in fact, the patter
 
 ### 2. defaults
 
-a default value will be used for part of a URL when we don't want to mention every time we are defining a route or creating a like. 
+a default value will be used for part of a URL when we don't want to mention every time we are defining a route or creating a link. 
 
     // Syntax
     Router::defaults($default_name, [$default_value[, $default_pattern]]);
@@ -97,6 +107,16 @@ finally we need to define routes.
     }
 
 
+### same routing, different patterns
+
+    include('lib/router.class.php');
+    Router::pattern('email', '/^[a-z0-9\._]+@[a-z0-9\._]+\.[a-z]{2,}$/i');
+    Router::pattern('mobile', '0[1-9][0-9]{9}');
+    Router::route('user_verification', array('url'=>'/verification/:email'), array('class'=>'users', 'method'=>'verification_by_email'));
+    Router::route('user_verification', array('url'=>'/verification/:mobile'), array('class'=>'users', 'method'=>'verification_by_mobile'));
+
+
+
 Advanced Usage
 -----------------------------
 
@@ -134,7 +154,7 @@ we can also override a default's value/patterns in defining a route
 you can generate a URL from a defined route by calling *link()* method.
 
     // Syntax
-    Router::link($router_name, $route_parameters[, $fqdn=false]);
+    Router::link($route_name, $route_parameters[, $fqdn=false]);
 
 **Example**: consider the routes we defined earlier, *archive*, *article*, *login* and *image*. we can generate appropriate URL links for them to use in html forms.
 
@@ -153,12 +173,12 @@ you can generate a URL from a defined route by calling *link()* method.
 
 **Note**: by overriding the default values, it is possible to create links pointing to other websites like CDNs.
 
-    // using jQuery from CND
+    // using jQuery from CDN
     // defining it's pattern and route
     Router::pattern('jquery', '/^jquery\-[0-9\.]+\.min\.js$/i');
     Router::route('jquery', array('url'=>'/:jquery', 'subdomain'=>'code', 'domain'=>'jquery.com'), array());
 
-    // generating cnd link
+    // generating cdn link
     $jquery_link = Router::link('jquery', array('jquery-1.9.1.min.js'), true);
 
     // result
@@ -192,7 +212,7 @@ we can also override the variable name these variables will be held in Router.
 
 ### Custom route value
 
-it's possible to define a custome value for routes. it can be an array containing any kinds of information inside.
+it's possible to define a custom value for routes. it can be an array containing any kinds of information inside.
 
 **Example**: simple static HTML file as route value
 
@@ -201,3 +221,137 @@ it's possible to define a custome value for routes. it can be an array containin
     
     $result = Router::find();
     include($result[0]);
+
+
+Real World Examples
+-----------------------------
+
+### Register and verification
+
+the project consists of these routes:
+
+* [http://www.example.com/](http://www.example.com/)
+* [https://www.example.com/register](https://www.example.com/register)
+* [http://www.example.com/register/verification/](http://www.example.com/register/verification/)
+* [http://www.example.com/register/verification/{phone-number}](http://www.example.com/register/verification/{phone-number})
+* [http://www.example.com/register/verification/{email-address}](http://www.example.com/register/verification/{email-address})
+
+
+if the web application was in Development or Test environment, we want host to be *localhost*. in continue, if using current stable PHP, set the port number to 80, otherwise to 8080. these allows us to create FQDN (full qualified domain names) properly in each environment without any further code-change.
+
+    include('lib/router.class.php');
+    
+    Router::pattern('id', '/^[0-9]+$/i');
+    Router::pattern('name', '/^[a-z][a-z0-9_]+$/i');
+    Router::pattern('nickname', '/^\p{L}[\p{L}\p{N} \.،,]+$/iu');
+    Router::pattern('mobile', '/^09[0-9]{9}$/');
+    Router::pattern('email', '/^[a-z0-9\._]+@[a-z0-9\._]+\.[a-z]{2,}$/i');
+
+    Router::defaults('method', 'GET|POST|PUT|DELETE');
+    Router::defaults('protocol', 'http');
+    if(DEVELOPEMENT||TEST){
+        Router::defaults('subdomain', '');
+        if(phpversion()=='5.4.11'){
+            Router::defaults('domain', 'localhost');
+            Router::defaults('port', 80);
+        }else{
+            Router::defaults('domain', 'localhost');
+            Router::defaults('port', 8080);
+        }
+    }else{
+        Router::defaults('subdomain', 'www');
+        Router::defaults('domain', 'example.com');
+        Router::defaults('port', 80);
+    }
+
+    Router::route('home', array('url'=>'/'), array('app/pages/home/home.php'));
+
+    Router::route('register', array('url'=>'/register', 'protocol'=>'https'), array('class'=>'users', 'action'=>'register'));
+    Router::route('verification', array('url'=>'/register/verification'), array('class'=>'users', 'action'=>'verification'));
+    Router::route('verification', array('url'=>'/register/verification/mobile:mobile'), array('class'=>'users', 'action'=>'verification_by_mobile'));
+    Router::route('verification', array('url'=>'/register/verification/email:email'), array('class'=>'users', 'action'=>'verification_by_email'));
+
+    $result = Router::find();
+    if(is_array($result)){
+        $class_name = $result[0];
+        $method_name = $result[1];
+        $class_obj = new $class_name();
+        if(method_exists($class_obj, $method_name)){
+        $class_obj->$method_name();
+        }else{
+            header('Location: /public/500.html');
+        }
+    }else{
+        header('Location: /public/404.html');
+    }
+
+
+### Multiple Servers
+
+in This project, we have users Avatars in different server [avatar.example.com](http://avatar.example.com) and other media files on another server named [media.example.com](http://media.example.com). to create proper URLs using reverse routing we need to override each route's subdomain. follow the code:
+
+* [http://www.example.com/](http://www.example.com/)
+* [http://avatar.example.com/{username}](http://www.example.com/admin)
+* [http://media.example.com/{media-type}/{media-id}](http://www.example.com/video/12)
+
+the following code illustrates the code:
+
+    // index.php
+    Router::pattern('nickname', '/[a-z][a-z0-9]{2,}/i');
+    Router::pattern('id', '/[0-9]+/i');
+    Router::pattern('type', '/(photo|video)$/i');
+
+    Router::defaults('method', 'GET|POST');
+    Router::defaults('protocol', 'http');
+    Router::defaults('subdomain', 'www');
+    Router::defaults('domain', 'example.com');
+    Router::defaults('port', 80);
+
+    Router::route('home', array('url'=>'/'), array('class'=>'static', 'method'=>'home'));
+    Router::route('home', array('url'=>'/:nickname', 'subdomain'=>'avatar'), array('class'=>'media', 'method'=>'avatar'));
+    Router::route('home', array('url'=>'/media-type:type/media-id:id', 'subdomain'=>'media'), array('class'=>'media', 'method'=>'show'));
+
+    // html_macro.php
+    function avatar_image($username){
+        $avatar_link = Router::link('avatar', array($username), true);
+        return "<img src='$avatar_link' class='avatar'>";
+    }
+    function media_download_link($media_type, $media_id){
+        $media_link = Router::link('media', array($media_type, $media_id), true);
+        // or
+        // $media_link = Router::link('media', array('media_id'=>$media_id, 'media_type'=>$media_type), true);
+        return "<a href='$media_link'>Download</a>";
+    }
+
+### Cross-domain routing
+
+it's possible to use Router class to generate links to other web services, like CDNs. for example here we try to load jQuery and Twitter Bootstrap from CDN using Router route.
+
+// index.php
+
+    Router::pattern('version', '/[0-9]\.[0-9]\.[0-9]/i');
+    Router::pattern('jquery', '/^jquery\-[0-9\.]+\.min\.js$/i');
+
+    Router::defaults('method', 'GET|POST');
+    Router::defaults('protocol', 'http');
+    Router::defaults('subdomain', 'www');
+    Router::defaults('domain', 'example.com');
+    Router::defaults('port', 80);
+
+    Router::route('jquery', array('url'=>'/:jquery', 'subdomain'=>'code', 'domain'=>'jquery.com'), array());
+    Router::route('bootstrap_css', array('url'=>'/twitter-bootstrap/:version/css/bootstrap-combined.min.css', 'subdomain'=>'netdna', 'domain'=>'bootstrapcdn.com'), array());
+    Router::route('bootstrap_js', array('url'=>'/twitter-bootstrap/:version/js/bootstrap.min.js', 'subdomain'=>'netdna', 'domain'=>'bootstrapcdn.com'), array());
+
+    // html_macro.php
+    function jquery_js($version='jquery-1.9.1.min.js'){
+        $jquery_link = Router::link('jquery', array($version), true);
+        return "<script src="$jquery_link"></script>"
+    }
+    function bootstrap_css($version='2.3.0'){
+        $bootstrap_link = Router::link('bootstrap_css', array($version), true);
+        return "<link href="$bootstrap_link" rel="stylesheet">"
+    }
+    function bootstrap_js($version='2.3.0'){
+        $bootstrap_link = Router::link('bootstrap_js', array($version), true);
+        return "<script src="$bootstrap_link"></script>"
+    }
