@@ -1,0 +1,6 @@
+RewriteEngine On
+
+# routes we don't want to be rewritten.
+# include your custom routes, separated by |
+RewriteCond %{REQUEST_URI} !^/(assets|public)
+RewriteRule ^(.*)$ index.php?url=%{REQUEST_URI} [QSA,L]
