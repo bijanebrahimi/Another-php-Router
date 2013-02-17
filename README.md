@@ -10,6 +10,11 @@ Introduction
 
 it's another router class for php. read the rest of manual for the detailed features and sample codes.
 
+License
+-----------------------------
+
+This is a free software and published under GPL v3.0 license. so you can freely use it, modify it to fit your needs and use it in your applications and finally share your changes with your friends and specially me. there is a plain text file containing the GPL v3.0 terms and definitions in the project or you can go online and check it for yourself at [www.gnu.org/copyleft/gpl.html](http://www.gnu.org/copyleft/gpl.html)
+
 Features
 -----------------------------
 
@@ -17,6 +22,10 @@ Features
 * powerful reverse routing include cross domain reverse routing
 * very flexible routing supporting different/user-defined protocols, subdomains, domanins, web server port and request methods
 * very simple to use
+
+Versions & Change Log
+-----------------------------
+* version 0.1
 
 How to [Simply] Use it
 -----------------------------
@@ -327,7 +336,7 @@ the following code illustrates the code:
 
 it's possible to use Router class to generate links to other web services, like CDNs. for example here we try to load jQuery and Twitter Bootstrap from CDN using Router route.
 
-// index.php
+    // index.php
 
     Router::pattern('version', '/[0-9]\.[0-9]\.[0-9]/i');
     Router::pattern('jquery', '/^jquery\-[0-9\.]+\.min\.js$/i');
